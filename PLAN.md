@@ -40,6 +40,35 @@ fast-paced-game/
 └── backend/            # Go project
     ├── go.mod
     ├── main.go         # Server entry point
-    ├── signaling/      # WebSocket handshake logic
+    ├── signal/         # WebSocket handshake logic 
     ├── webrtc/         # Pion WebRTC connection management
     └── game/           # Authoritative game state and physics loop
+```
+
+## Components
+
+A. The WebSocket Manager (The Front Desk)
+This is the entry point. Its only job is to listen for incoming WebSocket connections from React. When a player connects, it creates a Client struct to remember them and immediately hands them off to the Matchmaker.
+
+B. The Matchmaker (The Lobby)
+This is a single goroutine running in the background. It holds a list (a slice, in Go terms) of players waiting for a game.
+
+It looks at the list.
+
+If it sees two players, it plucks them out of the waiting list.
+
+It creates a new Room and puts both players inside it.
+
+C. The WebRTC Manager (The Operator)
+Once a Room is created, this module handles the complex signaling phase we discussed earlier. It uses the Pion library to generate the server's WebRTC Offers, sends them to the clients via the WebSocket, and establishes the UDP-like Data Channels.
+
+D. The Game Room (The Arena)
+This is where the magic happens. Every active match is its own Room running its own dedicated goroutine.
+
+It has a Ticker (a clock that ticks 60 times a second).
+
+Every tick, it reads the latest inputs received from the WebRTC data channels.
+
+It updates the authoritative GameState (moving X and Y coordinates).
+
+It broadcasts the new GameState back down the WebRTC channels to both players.
